@@ -102,8 +102,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ae154ac2b8afd4d42a1a6926807ddf58, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  velocidadBase: 2
-  tiempoSuavizado: 0.1
+  velocidadNormal: 5
+  distanciaPersecucion: 3
+  flechasPower: {fileID: 2578257394149547338, guid: 42c8998967e947a49bcde5cbf9684454, type: 3}
 --- !u!61 &1365219209758448016
 BoxCollider2D:
   m_ObjectHideFlags: 0
