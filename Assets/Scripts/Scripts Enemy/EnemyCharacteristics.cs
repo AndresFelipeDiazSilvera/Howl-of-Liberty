@@ -9,7 +9,7 @@ public class EnemyCharacteristics : MonoBehaviour
     public float vida = 100f;
     public float knockbackForce = 3f;
     public float immunityTime = 1.5f;
-    public float hurtAnimationTime = 0.8f;
+    public float hurtAnimationTime = 0.2f;
 
     [Header("Detección de daño")]
     public LayerMask capaArmaJugador;
@@ -54,9 +54,10 @@ public class EnemyCharacteristics : MonoBehaviour
             }
             else
             {
+                StartCoroutine(HurtRoutine());
                 Vector2 knockbackDir = (transform.position - collision.transform.position).normalized;
                 ApplyKnockback(knockbackDir);
-                StartCoroutine(HurtRoutine());
+                
             }
         }
     }
@@ -129,7 +130,7 @@ public class EnemyCharacteristics : MonoBehaviour
     {
         if (rb != null)
         {
-            rb.linearVelocity = Vector2.zero; // Detener el movimiento antes de aplicar el knockback
+            //rb.linearVelocity = Vector2.zero; // Detener el movimiento antes de aplicar el knockback
             rb.AddForce(direction * knockbackForce, ForceMode2D.Impulse);
         }
     }

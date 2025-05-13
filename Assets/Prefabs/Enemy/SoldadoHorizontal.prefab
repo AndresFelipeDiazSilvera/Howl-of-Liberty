@@ -4307,7 +4307,7 @@ MonoBehaviour:
   vida: 100
   knockbackForce: 1
   immunityTime: 1
-  hurtAnimationTime: 0.8
+  hurtAnimationTime: 0.4
   capaArmaJugador:
     serializedVersion: 2
     m_Bits: 64
