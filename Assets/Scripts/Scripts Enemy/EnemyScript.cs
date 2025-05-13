@@ -1,160 +1,139 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class EnemyScript : MonoBehaviour
 {
-    private bool esperandoParaAtacar = false;
-    [Header("Movimiento")]
-    public float velocidadMovimiento = 2.0f;
-    public float distanciaDeteccion = 5.0f;
-    public float distanciaAtaque = 1f;
-    public float tiempoEntreAtaques = 1.0f;
-    public float tiempoInmovilizacionAtaque = 2.0f;
-    public float ajusteVertical = -0.4f;
-
-    [Header("Estados")]
-    public bool estaAtacando { get; private set; }
-
+    // Variables públicas que se pueden ajustar desde el Inspector
+    public float velocidadMovimiento = 2.0f;     // Velocidad a la que se mueve el enemigo
+    public float distanciaDeteccion = 5.0f;      // Distancia a la que el enemigo detecta al jugador
+    public float distanciaAtaque = 0.5f;         // Distancia a la que el enemigo ataca al jugador
+    public float tiempoEntreAtaques = 1.0f;      // Tiempo entre ataques
+    public float fuerzaAtaque = 10.0f;           // Fuerza del ataque
+    
     private Animator anim;
-    private CircleCollider2D attackCollider;
-    private Transform jugador;
-    private Rigidbody2D rb;
-    private float tiempoUltimoAtaque;
 
+    private CircleCollider2D collider;
+    // Variables privadas
+    private Transform jugador;                   // Referencia al transform del jugador
+    private float tiempoUltimoAtaque;            // Tiempo en que se realizó el último ataque
+    private bool puedeAtacar = true;             // Bandera para controlar si puede atacar
+    private Rigidbody2D rb;                      // Componente Rigidbody2D del enemigo
+   
+    
     void Start()
     {
+        // Buscar al jugador en la escena
+        jugador = GameObject.FindGameObjectWithTag("Player").transform;
+        
+        // Obtener los componentes necesarios
         rb = GetComponent<Rigidbody2D>();
+       
+        
+        // Inicializar el tiempo del último ataque
+        tiempoUltimoAtaque = -tiempoEntreAtaques;  // Para permitir atacar inmediatamente
+
         anim = GetComponentInChildren<Animator>();
-        attackCollider = GetComponent<CircleCollider2D>();
-
-        if (attackCollider != null)
-            attackCollider.enabled = false;
-
-        tiempoUltimoAtaque = -tiempoEntreAtaques;
+        collider = GetComponent<CircleCollider2D>();
     }
-
+    
     void Update()
     {
-        if (jugador == null || !jugador.gameObject.activeInHierarchy || estaAtacando)
-        {
-            BuscarJugador(); // Intenta actualizar si el actual está desactivado o nulo
+        // Si no encontramos al jugador, no hacemos nada
+        if (jugador == null)
             return;
-        }
-
+            
+        // Calculamos la distancia al jugador
         float distanciaAlJugador = Vector2.Distance(transform.position, jugador.position);
-        if(jugador.gameObject.name == "Player_Human")
-        {
-            distanciaAtaque = 0.8f;
-        }
-        else
-        {
-            distanciaAtaque = 1.2f;
-        }
+        
+        // Decidimos si debemos perseguir al jugador
         if (distanciaAlJugador <= distanciaDeteccion)
         {
-            if (distanciaAlJugador > distanciaAtaque)
+            // Si estamos a distancia de ataque
+            if (distanciaAlJugador <= distanciaAtaque)
             {
-                PerseguirJugador();
+                
+                // Detenemos el movimiento
+                DetenerMovimiento();
+                
+                // Intentamos atacar
+                IntentarAtacar();
             }
             else
             {
-                AlinearHorizontalmente();
-
-                if (!esperandoParaAtacar)
-                    StartCoroutine(EsperarAntesDeAtacar());
+                
+                // Si no estamos a distancia de ataque, perseguimos al jugador
+                PerseguirJugador();
+                
             }
         }
         else
         {
+            // Si el jugador está fuera del rango de detección, detenemos al enemigo
             DetenerMovimiento();
         }
     }
-    public void BuscarJugador()
-    {
-        GameObject jugadorGO = GameObject.FindGameObjectWithTag("Player");
-        if (jugadorGO != null)
-        {
-            jugador = jugadorGO.transform;
-        }
-        else
-        {
-            Debug.LogWarning("No se encontró un objeto con la etiqueta 'Player'");
-        }
-    }
-    void AlinearHorizontalmente()
-    {
-        // Ajuste en Y para alinear horizontalmente sin moverse en X
-        float desplazamientoY = (jugador.position.y - 0.4f) + ajusteVertical - transform.position.y;
-        rb.linearVelocity = new Vector2(0, desplazamientoY) * velocidadMovimiento;
-
-        // Voltear sprite hacia el jugador
-        transform.localScale = new Vector3(jugador.position.x > transform.position.x ? -1 : 1, 1, 1);
-    }
-
+    
     void PerseguirJugador()
     {
-        Vector2 direccion = (new Vector3(
-            jugador.position.x,
-            jugador.position.y + ajusteVertical,
-            jugador.position.z
-        ) - transform.position).normalized;
-
+        // Calculamos la dirección hacia el jugador
+        Vector2 direccion = (jugador.position - transform.position).normalized;
+        collider.enabled = false;
+        // Movemos al enemigo hacia el jugador
         rb.linearVelocity = direccion * velocidadMovimiento;
-        transform.localScale = new Vector3(direccion.x > 0 ? -1 : 1, 1, 1);
-    }
+        
+        // Volteamos el sprite según la dirección del movimiento
+        if (jugador.position.x > transform.position.x)
+            transform.localScale = new Vector3(-1, 1, 1);
+        else if (jugador.position.x < transform.position.x)
+            transform.localScale = new Vector3(1, 1, 1);
 
+    }
+    
     void DetenerMovimiento()
     {
+        // Detenemos el movimiento del enemigo
         rb.linearVelocity = Vector2.zero;
     }
-
+    
     void IntentarAtacar()
     {
-        if (Time.time >= tiempoUltimoAtaque + tiempoEntreAtaques && !estaAtacando)
+        // Verificamos si ha pasado suficiente tiempo desde el último ataque
+        if (Time.time >= tiempoUltimoAtaque + tiempoEntreAtaques)
         {
-            StartCoroutine(EjecutarAtaque());
+            // Realizamos el ataque
+            Atacar();
+            
+            // Actualizamos el tiempo del último ataque
+            tiempoUltimoAtaque = Time.time;
         }
     }
-
-    IEnumerator EjecutarAtaque()
+    
+    void Atacar()
     {
-        estaAtacando = true;
-        DetenerMovimiento();
+        // Aquí iría la lógica de ataque
+        Debug.Log("¡Enemigo atacando al jugador!");
         anim.SetTrigger("2_Attack");
+        collider.enabled = true;
 
-        yield return new WaitForSeconds(0.1f);
-        attackCollider.enabled = true;
-
-        yield return new WaitForSeconds(0.1f);
-        attackCollider.enabled = false;
-
-        yield return new WaitForSeconds(tiempoInmovilizacionAtaque - 0.2f);
-        tiempoUltimoAtaque = Time.time;
-        estaAtacando = false;
+       
+        
+        // Aquí puedes enviar un mensaje al jugador para que reciba daño
+        // Por ejemplo:
+        // jugador.GetComponent<JugadorScript>().RecibirDanio(fuerzaAtaque);
     }
-
+    
+  
+    
+    // Método para dibujar gizmos en el editor (ayuda visual)
     void OnDrawGizmosSelected()
     {
+        // Dibujamos el radio de detección
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, distanciaDeteccion);
-
+        
+        // Dibujamos el radio de ataque
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, distanciaAtaque);
     }
-    IEnumerator EsperarAntesDeAtacar()
-    {
-        esperandoParaAtacar = true;
-        DetenerMovimiento(); // se queda quieto mientras espera
-
-        yield return new WaitForSeconds(0.3f); // espera 1 segundo
-
-        // Solo ataca si sigue cerca del jugador y no está atacando
-        if (!estaAtacando && Vector2.Distance(transform.position, jugador.position) <= distanciaAtaque)
-        {
-            IntentarAtacar();
-        }
-
-        esperandoParaAtacar = false;
-    }
-
 }

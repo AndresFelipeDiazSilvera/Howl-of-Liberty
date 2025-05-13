@@ -18,21 +18,11 @@ public class PlayerWolfController : MonoBehaviour
     public AudioClip bite;
     public AudioSource audioSource;
     private bool isMoving = false;
-    private SpriteRenderer spriteRenderer;
 
-    public BoxCollider2D attackCollider;
-    private WolfCharacteristics wolfCharacteristics;
-    private void Start()
-    {
-        wolfCharacteristics = GetComponent<WolfCharacteristics>();
 
-        if (attackCollider != null)
-            attackCollider.enabled = false;
-    }
 
     void OnEnable()
     {
-        spriteRenderer = GetComponent<SpriteRenderer>();
         rb = GetComponent<Rigidbody2D>();
         isAttacking = false;
         attackInputThisFrame = false;
@@ -42,9 +32,6 @@ public class PlayerWolfController : MonoBehaviour
             animator.SetBool("isAttacking", false);
             animator.SetFloat("speed", 0);
         }
-
-        if (attackCollider != null)
-            attackCollider.enabled = false;
     }
 
     public void ReceiveInput(PlayerInput inputReference)
@@ -60,28 +47,20 @@ public class PlayerWolfController : MonoBehaviour
 
     IEnumerator ReturnToHuman()
     {
-        EnemyScript[] enemigosActivos = FindObjectsByType<EnemyScript>(FindObjectsSortMode.None);
-
-        foreach (EnemyScript enemyScript in enemigosActivos)
-        {
-            if (enemyScript.enabled)
-                enemyScript.BuscarJugador();
-        }
 
         yield return new WaitForSeconds(10f);
 
+        // Mover al Human a la posición actual del Wolf
         humanToReactivate.transform.position = transform.position;
         humanToReactivate.transform.rotation = transform.rotation;
+
         humanToReactivate.SetActive(true);
 
         PlayerController humanScript = humanToReactivate.GetComponent<PlayerController>();
-        PlayerCharacteristics playerCharacteristics = humanToReactivate.GetComponent<PlayerCharacteristics>();
-        WolfCharacteristics wolfCharacteristics = GetComponent<WolfCharacteristics>();
-
-        playerCharacteristics.RecibirVida(Mathf.Clamp(wolfCharacteristics.vida, 0, playerCharacteristics.vidaMaxima));
-
         if (humanScript != null)
+        {
             humanScript.ResetAttackCount();
+        }
 
         gameObject.SetActive(false);
     }
@@ -91,17 +70,20 @@ public class PlayerWolfController : MonoBehaviour
         if (sharedInput != null)
         {
             inputs = sharedInput.actions["Move"].ReadValue<Vector2>();
+
             bool currentlyMoving = inputs.magnitude > 0.01f;
 
+            // Si el personaje comienza a moverse y no se estaba moviendo antes, inicia la reproducción
             if (currentlyMoving && !isMoving && !isAttacking)
             {
                 if (audioSource != null && walkWolf != null && !audioSource.isPlaying)
                 {
-                    audioSource.clip = walkWolf;
+                    audioSource.clip = walkWolf; // Asigna el clip a la AudioSource
                     audioSource.Play();
                 }
-                isMoving = true;
+                isMoving = true; // Marca que ahora se está moviendo
             }
+            // Si el personaje deja de moverse y estaba en movimiento, detiene la reproducción
             else if ((!currentlyMoving && isMoving) || (currentlyMoving && isMoving && isAttacking))
             {
                 if (audioSource != null && audioSource.isPlaying)
@@ -109,12 +91,12 @@ public class PlayerWolfController : MonoBehaviour
                     audioSource.Stop();
                     audioSource.PlayOneShot(bite);
                 }
-                isMoving = false;
+                isMoving = false; // Marca que ahora no se está moviendo
             }
 
-            if (inputs.x > 0.01f && !isAttacking)
+            if (inputs.x > 0.01f)
                 transform.localScale = new Vector3(-1, 1, 1);
-            else if (inputs.x < -0.01f && !isAttacking)
+            else if (inputs.x < -0.01f)
                 transform.localScale = new Vector3(1, 1, 1);
 
             if (sharedInput.actions["Attack"].WasPressedThisFrame())
@@ -123,8 +105,11 @@ public class PlayerWolfController : MonoBehaviour
             }
         }
 
+        // Animación de movimiento
         if (animator != null)
+        {
             animator.SetFloat("speed", inputs.magnitude);
+        }
     }
 
     void FixedUpdate()
@@ -135,55 +120,22 @@ public class PlayerWolfController : MonoBehaviour
 
         if (attackInputThisFrame && !isAttacking)
         {
-            spriteRenderer.sortingOrder = 12;
             isAttacking = true;
             rb.linearVelocity = Vector2.zero;
 
             if (animator != null)
                 animator.SetBool("isAttacking", true);
-
-            if (audioSource != null)
                 audioSource.PlayOneShot(bite);
 
-            if (attackCollider != null)
-                StartCoroutine(ActivarColliderTemporal());
-
-            Invoke(nameof(EndAttack), 0.6f);
+            // Puedes llamar una animación evento para desactivar después
+            Invoke(nameof(EndAttack), 0.6f); // Asumiendo que la animación dura 0.6 segundos
         }
 
         attackInputThisFrame = false;
     }
-    void OnTriggerEnter2D(Collider2D collision)
-    {
-        if (isAttacking && collision.CompareTag("Enemigo"))
-        {
-            EnemyCharacteristics enemy = collision.GetComponentInParent<EnemyCharacteristics>();
-            if (enemy != null && wolfCharacteristics != null && wolfCharacteristics.characteristics != null)
-            {
-                // Cura al golpear a un enemigo
-                wolfCharacteristics.characteristics.Curar(20f);
-            }
-        }
-    }
-
-    IEnumerator ActivarColliderTemporal()
-    {
-        attackCollider.enabled = true;
-
-        // ✅ CURACIÓN al atacar
-        WolfCharacteristics wolfChar = GetComponent<WolfCharacteristics>();
-        if (wolfChar != null && wolfChar.characteristics != null)
-        {
-            wolfChar.characteristics.Curar(20f);
-        }
-
-        yield return new WaitForSeconds(0.1f);
-        attackCollider.enabled = false;
-    }
 
     void EndAttack()
     {
-        spriteRenderer.sortingOrder = 9;
         isAttacking = false;
         if (animator != null)
             animator.SetBool("isAttacking", false);
